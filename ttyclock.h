@@ -109,6 +109,9 @@ typedef struct
      struct tm *tm;
      time_t lt;
 
+     /* init time */ 
+     time_t init_lt;
+
      /* Clock member */
      char *meridiem;
      WINDOW *framewin;
@@ -119,7 +122,6 @@ typedef struct
 /* Prototypes */
 void init(void);
 void signal_handler(int signal);
-void update_hour(void);
 void draw_number(int n, int x, int y);
 void draw_clock(void);
 void clock_move(int x, int y, int w, int h);
@@ -127,24 +129,14 @@ void set_second(void);
 void set_center(bool b);
 void set_box(bool b);
 void key_event(void);
-
+void cleanup(void); 
+void clock_rebound(void);
+int format_hours(int);
 /* Global variable */
 ttyclock_t ttyclock;
 
 /* Number matrix */
-const bool number[][15] =
-{
-     {1,1,1,1,0,1,1,0,1,1,0,1,1,1,1}, /* 0 */
-     {0,0,1,0,0,1,0,0,1,0,0,1,0,0,1}, /* 1 */
-     {1,1,1,0,0,1,1,1,1,1,0,0,1,1,1}, /* 2 */
-     {1,1,1,0,0,1,1,1,1,0,0,1,1,1,1}, /* 3 */
-     {1,0,1,1,0,1,1,1,1,0,0,1,0,0,1}, /* 4 */
-     {1,1,1,1,0,0,1,1,1,0,0,1,1,1,1}, /* 5 */
-     {1,1,1,1,0,0,1,1,1,1,0,1,1,1,1}, /* 6 */
-     {1,1,1,0,0,1,0,0,1,0,0,1,0,0,1}, /* 7 */
-     {1,1,1,1,0,1,1,1,1,1,0,1,1,1,1}, /* 8 */
-     {1,1,1,1,0,1,1,1,1,0,0,1,1,1,1}, /* 9 */
-};
+extern const bool number[][15]; 
 
 #endif /* TTYCLOCK_H_INCLUDED */
 

@@ -1,59 +1,31 @@
-/*
- *      TTY-CLOCK Main file.
- *      Copyright © 2009-2018 tty-clock contributors
- *      Copyright © 2008 Martin Duquesnoy <xorg62@gmail.com>
- *      All rights reserved.
- *
- *      Redistribution and use in source and binary forms, with or without
- *      modification, are permitted provided that the following conditions are
- *      met:
- *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following disclaimer
- *        in the documentation and/or other materials provided with the
- *        distribution.
- *      * Neither the name of the  nor the names of its
- *        contributors may be used to endorse or promote products derived from
- *        this software without specific prior written permission.
- *
- *      THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *      "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *      LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *      A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *      OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *      SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *      LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *      DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *      THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *      (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *      OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
 
 #include "ttyclock.h"
-
-void
-update_hour(void)
+void update_timer(void)
 {
      int ihour;
      char tmpstr[128];
 
      ttyclock.lt = time(NULL);
      ttyclock.tm = localtime(&(ttyclock.lt));
-     if(ttyclock.option.utc) {
+     if (ttyclock.option.utc)
+     {
           ttyclock.tm = gmtime(&(ttyclock.lt));
      }
 
-     ihour = format_hours(ttyclock.tm->tm_hour);
+     // Calculate elapsed time since initialization
+     time_t diff = difftime(time(NULL), ttyclock.init_lt);
+     int hours = (int)(diff / 3600);
+     int minutes = (int)((diff % 3600) / 60);
+     int seconds = (int)(diff % 60);
 
-     /* Set hour */
+     ihour = format_hours(hours);
+     /* Set hour using elapsed time */
      ttyclock.date.hour[0] = ihour / 10;
      ttyclock.date.hour[1] = ihour % 10;
 
-     /* Set minutes */
-     ttyclock.date.minute[0] = ttyclock.tm->tm_min / 10;
-     ttyclock.date.minute[1] = ttyclock.tm->tm_min % 10;
+     /* Set minutes using elapsed time */
+     ttyclock.date.minute[0] = minutes / 10;
+     ttyclock.date.minute[1] = minutes % 10;
 
      /* Set date string */
      strcpy(ttyclock.date.old_datestr, ttyclock.date.datestr);
@@ -63,13 +35,19 @@ update_hour(void)
               ttyclock.tm);
      sprintf(ttyclock.date.datestr, "%s%s", tmpstr, ttyclock.meridiem);
 
-     /* Set seconds */
-     ttyclock.date.second[0] = ttyclock.tm->tm_sec / 10;
-     ttyclock.date.second[1] = ttyclock.tm->tm_sec % 10;
+     /* Set seconds using elapsed time */
+     ttyclock.date.second[0] = seconds / 10;
+     ttyclock.date.second[1] = seconds % 10;
 
      return;
 }
+void
 
+reset_timer(void)
+{
+     ttyclock.init_lt = time(NULL);
+     return;
+}
 void
 key_event(void)
 {
@@ -152,15 +130,6 @@ key_event(void)
      case 'S':
           set_second();
           break;
-
-     case 't':
-     case 'T':
-          ttyclock.option.twelve = !ttyclock.option.twelve;
-          /* Set the new ttyclock.date.datestr to resize date window */
-          update_hour();
-          clock_move(ttyclock.geo.x, ttyclock.geo.y, ttyclock.geo.w, ttyclock.geo.h);
-          break;
-
      case 'c':
      case 'C':
           set_center(!ttyclock.option.center);
@@ -173,9 +142,7 @@ key_event(void)
 
      case 'r':
      case 'R':
-          ttyclock.option.rebound = !ttyclock.option.rebound;
-          if(ttyclock.option.rebound && ttyclock.option.center)
-               ttyclock.option.center = false;
+          reset_timer();
           break;
 
      case 'x':
@@ -198,8 +165,8 @@ key_event(void)
      return;
 }
 
-int
-main(int argc, char **argv)
+
+int main(int argc, char **argv)
 {
      int c;
 
@@ -209,11 +176,11 @@ main(int argc, char **argv)
      ttyclock.option.date = true;
 
      /* Default date format */
-     strncpy(ttyclock.option.format, "%F", sizeof (ttyclock.option.format));
+     strncpy(ttyclock.option.format, "%F", sizeof(ttyclock.option.format));
      /* Default color */
      ttyclock.option.color = COLOR_GREEN; /* COLOR_GREEN = 2 */
      /* Default delay */
-     ttyclock.option.delay = 1; /* 1FPS */
+     ttyclock.option.delay = 1;   /* 1FPS */
      ttyclock.option.nsdelay = 0; /* -0FPS */
      ttyclock.option.blink = false;
 
@@ -221,45 +188,45 @@ main(int argc, char **argv)
 
      while ((c = getopt(argc, argv, "iuvsScbtrhBxnDC:f:d:T:a:")) != -1)
      {
-          switch(c)
+          switch (c)
           {
           case 'h':
           default:
-               printf("usage : tty-clock [-iuvsScbtrahDBxn] [-C [0-7]] [-f format] [-d delay] [-a nsdelay] [-T tty] \n"
-                      "    -s            Show seconds                                   \n"
+               printf("usage : tty-timer [-iuvsScbtrahDBxn] [-C [0-7]] [-f format] [-d delay] [-a nsdelay] [-T tty] \n"
+                      "    -s            Toggle seconds display                         \n"
                       "    -S            Screensaver mode                               \n"
                       "    -x            Show box                                       \n"
-                      "    -c            Set the clock at the center of the terminal    \n"
-                      "    -C [0-7]      Set the clock color                            \n"
+                      "    -c            Set the timer at the center of the terminal   \n"
+                      "    -C [0-7]      Set the timer color                           \n"
                       "    -b            Use bold colors                                \n"
-                      "    -t            Set the hour in 12h format                     \n"
                       "    -u            Use UTC time                                   \n"
-                      "    -T tty        Display the clock on the specified terminal    \n"
-                      "    -r            Do rebound the clock                           \n"
+                      "    -T tty        Display the timer on the specified terminal   \n"
+                      "    -r            Reset timer (R key during runtime)            \n"
                       "    -f format     Set the date format                            \n"
                       "    -n            Don't quit on keypress                         \n"
-                      "    -v            Show tty-clock version                         \n"
-                      "    -i            Show some info about tty-clock                 \n"
+                      "    -v            Show tty-timer version                         \n"
+                      "    -i            Show some info about tty-timer                 \n"
                       "    -h            Show this page                                 \n"
                       "    -D            Hide date                                      \n"
                       "    -B            Enable blinking colon                          \n"
-                      "    -d delay      Set the delay between two redraws of the clock. Default 1s. \n"
-                      "    -a nsdelay    Additional delay between two redraws in nanoseconds. Default 0ns.\n");
+                      "    -d delay      Set the delay between redraws. Default 1s.    \n"
+                      "    -a nsdelay    Additional delay in nanoseconds. Default 0ns. \n"
+                      "\n");
                exit(EXIT_SUCCESS);
                break;
           case 'i':
-               puts("TTY-Clock 2 © by Martin Duquesnoy (xorg62@gmail.com), Grey (grey@greytheory.net)");
+               puts("TTY-Timer (based on TTY-Clock) - A simple terminal timer");
                exit(EXIT_SUCCESS);
                break;
           case 'u':
                ttyclock.option.utc = true;
                break;
           case 'v':
-               puts("TTY-Clock 2 © devel version");
+               puts("TTY-Timer v1.0 - Terminal Timer");
                exit(EXIT_SUCCESS);
                break;
           case 's':
-               ttyclock.option.second = true;
+               ttyclock.option.second = !ttyclock.option.second; // Toggle seconds
                break;
           case 'S':
                ttyclock.option.screensaver = true;
@@ -271,20 +238,17 @@ main(int argc, char **argv)
                ttyclock.option.bold = true;
                break;
           case 'C':
-               if(atoi(optarg) >= 0 && atoi(optarg) < 8)
+               if (atoi(optarg) >= 0 && atoi(optarg) < 8)
                     ttyclock.option.color = atoi(optarg);
                break;
-          case 't':
-               ttyclock.option.twelve = true;
-               break;
           case 'r':
-               ttyclock.option.rebound = true;
+               reset_timer();
                break;
           case 'f':
                strncpy(ttyclock.option.format, optarg, 100);
                break;
           case 'd':
-               if(atol(optarg) >= 0 && atol(optarg) < 100)
+               if (atol(optarg) >= 0 && atol(optarg) < 100)
                     ttyclock.option.delay = atol(optarg);
                break;
           case 'D':
@@ -294,27 +258,34 @@ main(int argc, char **argv)
                ttyclock.option.blink = true;
                break;
           case 'a':
-               if(atol(optarg) >= 0 && atol(optarg) < 1000000000)
+               if (atol(optarg) >= 0 && atol(optarg) < 1000000000)
                     ttyclock.option.nsdelay = atol(optarg);
                break;
           case 'x':
                ttyclock.option.box = true;
                break;
-          case 'T': {
+          case 'T':
+          {
                struct stat sbuf;
-               if (stat(optarg, &sbuf) == -1) {
-                    fprintf(stderr, "tty-clock: error: couldn't stat '%s': %s.\n",
-                              optarg, strerror(errno));
+               if (stat(optarg, &sbuf) == -1)
+               {
+                    fprintf(stderr, "tty-timer: error: couldn't stat '%s': %s.\n",
+                            optarg, strerror(errno));
                     exit(EXIT_FAILURE);
-               } else if (!S_ISCHR(sbuf.st_mode)) {
-                    fprintf(stderr, "tty-clock: error: '%s' doesn't appear to be a character device.\n",
-                              optarg);
+               }
+               else if (!S_ISCHR(sbuf.st_mode))
+               {
+                    fprintf(stderr, "tty-timer: error: '%s' doesn't appear to be a character device.\n",
+                            optarg);
                     exit(EXIT_FAILURE);
-               } else {
+               }
+               else
+               {
                     free(ttyclock.tty);
                     ttyclock.tty = strdup(optarg);
-               }}
-               break;
+               }
+          }
+          break;
           case 'n':
                ttyclock.option.noquit = true;
                break;
@@ -323,17 +294,16 @@ main(int argc, char **argv)
 
      init();
      attron(A_BLINK);
-     while(ttyclock.running)
+     while (ttyclock.running)
      {
           clock_rebound();
-          update_hour();
+          update_timer();
           draw_clock();
           key_event();
      }
 
      endwin();
+     printf("Timer stopped.\n");
 
      return 0;
 }
-
-// vim: expandtab tabstop=5 softtabstop=5 shiftwidth=5

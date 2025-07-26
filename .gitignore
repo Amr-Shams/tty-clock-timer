@@ -1,2 +1,5 @@
 tty-clock
 tty-clock.dSYM/
+tty-timer.dSYM/
+.gitignore
+tty-timer

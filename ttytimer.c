@@ -46,7 +46,10 @@ void
 reset_timer(void)
 {
      ttyclock.init_lt = time(NULL);
-     return;
+}
+void 
+toggle_pause(void){
+    ttyclock.pause = !ttyclock.pause;
 }
 void
 key_event(void)
@@ -149,7 +152,10 @@ key_event(void)
      case 'X':
           set_box(!ttyclock.option.box);
           break;
-
+    case 'p': 
+    case 'P': 
+          toggle_pause(); 
+          break;
      case '0': case '1': case '2': case '3':
      case '4': case '5': case '6': case '7':
           i = c - '0';
@@ -296,10 +302,13 @@ int main(int argc, char **argv)
      attron(A_BLINK);
      while (ttyclock.running)
      {
+                 key_event();
+
+       if(ttyclock.pause == true)
+         continue;
           clock_rebound();
           update_timer();
           draw_clock();
-          key_event();
      }
 
      endwin();

@@ -61,6 +61,7 @@ typedef struct
 {
      /* while() boolean */
      bool running;
+     bool pause; 
 
      /* terminal variables */
      SCREEN *ttyscr;

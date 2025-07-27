@@ -1,6 +1,8 @@
 
 #include "ttyclock.h"
-void update_timer(void)
+time_t pause_time;
+void
+update_timer(void)
 {
      int ihour;
      char tmpstr[128];
@@ -42,22 +44,34 @@ void update_timer(void)
      return;
 }
 void
-
 reset_timer(void)
 {
      ttyclock.init_lt = time(NULL);
 }
-void 
-toggle_pause(void){
-    ttyclock.pause = !ttyclock.pause;
+void
+toggle_pause(void)
+{
+     time_t now = time(NULL);
+
+     if (!ttyclock.pause)
+     {
+          pause_time = now;
+     }
+     else
+     {
+          time_t paused_duration = now - pause_time;
+          ttyclock.init_lt += paused_duration;
+     }
+
+     ttyclock.pause = !ttyclock.pause;
 }
 void
 key_event(void)
 {
      int i, c;
 
-     struct timespec length = { ttyclock.option.delay, ttyclock.option.nsdelay };
-     
+     struct timespec length = {ttyclock.option.delay, ttyclock.option.nsdelay};
+
      fd_set rfds;
      FD_ZERO(&rfds);
      FD_SET(STDIN_FILENO, &rfds);
@@ -65,15 +79,15 @@ key_event(void)
      if (ttyclock.option.screensaver)
      {
           c = wgetch(stdscr);
-          if(c != ERR && ttyclock.option.noquit == false)
+          if (c != ERR && ttyclock.option.noquit == false)
           {
                ttyclock.running = false;
           }
           else
           {
                nanosleep(&length, NULL);
-               for(i = 0; i < 8; ++i)
-                    if(c == (i + '0'))
+               for (i = 0; i < 8; ++i)
+                    if (c == (i + '0'))
                     {
                          ttyclock.option.color = i;
                          init_pair(1, ttyclock.bg, i);
@@ -83,8 +97,7 @@ key_event(void)
           return;
      }
 
-
-     switch(c = wgetch(stdscr))
+     switch (c = wgetch(stdscr))
      {
      case KEY_RESIZE:
           endwin();
@@ -94,32 +107,28 @@ key_event(void)
      case KEY_UP:
      case 'k':
      case 'K':
-          if(ttyclock.geo.x >= 1
-             && !ttyclock.option.center)
+          if (ttyclock.geo.x >= 1 && !ttyclock.option.center)
                clock_move(ttyclock.geo.x - 1, ttyclock.geo.y, ttyclock.geo.w, ttyclock.geo.h);
           break;
 
      case KEY_DOWN:
      case 'j':
      case 'J':
-          if(ttyclock.geo.x <= (LINES - ttyclock.geo.h - DATEWINH)
-             && !ttyclock.option.center)
+          if (ttyclock.geo.x <= (LINES - ttyclock.geo.h - DATEWINH) && !ttyclock.option.center)
                clock_move(ttyclock.geo.x + 1, ttyclock.geo.y, ttyclock.geo.w, ttyclock.geo.h);
           break;
 
      case KEY_LEFT:
      case 'h':
      case 'H':
-          if(ttyclock.geo.y >= 1
-             && !ttyclock.option.center)
+          if (ttyclock.geo.y >= 1 && !ttyclock.option.center)
                clock_move(ttyclock.geo.x, ttyclock.geo.y - 1, ttyclock.geo.w, ttyclock.geo.h);
           break;
 
      case KEY_RIGHT:
      case 'l':
      case 'L':
-          if(ttyclock.geo.y <= (COLS - ttyclock.geo.w - 1)
-             && !ttyclock.option.center)
+          if (ttyclock.geo.y <= (COLS - ttyclock.geo.w - 1) && !ttyclock.option.center)
                clock_move(ttyclock.geo.x, ttyclock.geo.y + 1, ttyclock.geo.w, ttyclock.geo.h);
           break;
 
@@ -152,12 +161,18 @@ key_event(void)
      case 'X':
           set_box(!ttyclock.option.box);
           break;
-    case 'p': 
-    case 'P': 
-          toggle_pause(); 
+     case 'p':
+     case 'P':
+          toggle_pause();
           break;
-     case '0': case '1': case '2': case '3':
-     case '4': case '5': case '6': case '7':
+     case '0':
+     case '1':
+     case '2':
+     case '3':
+     case '4':
+     case '5':
+     case '6':
+     case '7':
           i = c - '0';
           ttyclock.option.color = i;
           init_pair(1, ttyclock.bg, i);
@@ -171,8 +186,8 @@ key_event(void)
      return;
 }
 
-
-int main(int argc, char **argv)
+int
+main(int argc, char **argv)
 {
      int c;
 
@@ -302,13 +317,15 @@ int main(int argc, char **argv)
      attron(A_BLINK);
      while (ttyclock.running)
      {
-                 key_event();
-
-       if(ttyclock.pause == true)
-         continue;
           clock_rebound();
+          if (ttyclock.pause == true)
+          {
+               key_event();
+               continue;
+          }
           update_timer();
           draw_clock();
+          key_event();
      }
 
      endwin();

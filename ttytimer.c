@@ -1,6 +1,138 @@
 
 #include "ttyclock.h"
 time_t pause_time;
+void 
+init_stats(void) { 
+  memset(&ttyclock.stats, 0, sizeof(ttyclock.stats)); 
+  ttyclock.stats.show_stats = false; 
+  /* Load stats from the file */ 
+  load_stats();
+  /* Create the stats window on the top corner  */ 
+  int stats_w=30; 
+  int stats_h=12; 
+  int stats_x=1; 
+  int stats_y=COLS-stats_w-1;
+  if(stats_y<0) stats_y=0; 
+  if(stats_x + stats_h > LINES) stats_x=LINES-stats_h-1;
+    ttyclock.statswin = newwin(stats_h, stats_w,
+                                stats_x, stats_y);
+
+  if(ttyclock.option.box && ttyclock.stats.show_stats)
+    box(ttyclock.statswin, 0, 0); 
+}
+void 
+update_stats(void) {
+  if(!ttyclock.pause){ 
+  ttyclock.stats.session_time = difftime(time(NULL), ttyclock.init_lt); 
+  if(ttyclock.stats.session_time > ttyclock.stats.best_session) {
+    ttyclock.stats.best_session= ttyclock.stats.session_time;
+    }
+  }
+}
+void 
+// TODO: update it to the advanced version like the clock 
+draw_stats(void) { 
+  if(!ttyclock.stats.show_stats){ return ;}
+  
+    werase(ttyclock.statswin);
+    
+    if (ttyclock.option.box) {
+        box(ttyclock.statswin, 0, 0);
+    }
+    
+    if (ttyclock.option.bold) {
+        wattron(ttyclock.statswin, A_BOLD);
+    }
+    
+    wbkgdset(ttyclock.statswin, COLOR_PAIR(2));
+    
+    // Display stats
+    mvwprintw(ttyclock.statswin, 1, 2, "TIMER STATISTICS");
+    mvwprintw(ttyclock.statswin, 3, 2, "Sessions: %u", ttyclock.stats.total_sessions);
+    mvwprintw(ttyclock.statswin, 4, 2, "Current Streak: %u", ttyclock.stats.current_streak);
+    mvwprintw(ttyclock.statswin, 5, 2, "Best Streak: %u", ttyclock.stats.best_streak);
+    
+    // Format times
+    int hours, minutes, seconds;
+    
+    // Current session
+    hours = (int)(ttyclock.stats.session_time / 3600);
+    minutes = (int)((ttyclock.stats.session_time % 3600) / 60);
+    seconds = (int)(ttyclock.stats.session_time % 60);
+    mvwprintw(ttyclock.statswin, 6, 2, "Session: %02d:%02d:%02d", hours, minutes, seconds);
+    
+    // Best session
+    hours = (int)(ttyclock.stats.best_session / 3600);
+    minutes = (int)((ttyclock.stats.best_session % 3600) / 60);
+    seconds = (int)(ttyclock.stats.best_session % 60);
+    mvwprintw(ttyclock.statswin, 7, 2, "Best: %02d:%02d:%02d", hours, minutes, seconds);
+    
+    // Total time
+    hours = (int)(ttyclock.stats.total_time / 3600);
+    minutes = (int)((ttyclock.stats.total_time % 3600) / 60);
+    mvwprintw(ttyclock.statswin, 8, 2, "Total: %02d:%02d", hours, minutes);
+    
+    // Status
+    mvwprintw(ttyclock.statswin, 10, 2, "Status: %s", 
+              ttyclock.pause ? "PAUSED" : "RUNNING");
+    
+    wrefresh(ttyclock.statswin);
+}
+void toggle_stats(void)
+{
+    ttyclock.stats.show_stats = !ttyclock.stats.show_stats;
+    
+    if (ttyclock.stats.show_stats) {
+        // Show stats window
+        if (ttyclock.option.box) {
+            box(ttyclock.statswin, 0, 0);
+        }
+        wrefresh(ttyclock.statswin);
+    } else {
+        // Hide stats window
+        werase(ttyclock.statswin);
+        wrefresh(ttyclock.statswin);
+    }
+}
+void 
+save_stats(void) { 
+  FILE *file = fopen(".ttytimer_stats", "w");
+  if(!file)return ; 
+  fprintf(file, "%u\n%u\n%u\n%ld\n%ld\n%ld\n", 
+                ttyclock.stats.total_sessions,
+                ttyclock.stats.current_streak,
+                ttyclock.stats.best_streak,
+                ttyclock.stats.total_time,
+                ttyclock.stats.session_time,
+                ttyclock.stats.best_session);
+        fclose(file);
+}
+void load_stats(void)
+{
+    FILE *file = fopen(".ttytimer_stats", "r");
+    if (file) {
+        fscanf(file, "%u\n%u\n%u\n%ld\n%ld\n%ld\n",
+               &ttyclock.stats.total_sessions,
+               &ttyclock.stats.current_streak,
+               &ttyclock.stats.best_streak,
+               &ttyclock.stats.total_time,
+               &ttyclock.stats.session_time,
+               &ttyclock.stats.best_session);
+        fclose(file);
+    }
+}
+void  
+reset_stats(void) { 
+  ttyclock.stats.total_sessions++; 
+  ttyclock.stats.total_time += ttyclock.stats.session_time; 
+  ttyclock.stats.current_streak++; 
+  if (ttyclock.stats.current_streak > ttyclock.stats.best_streak) { 
+    ttyclock.stats.best_streak = ttyclock.stats.current_streak; 
+  } 
+  save_stats(); 
+  reset_timer(); 
+  ttyclock.stats.session_time = 0; 
+}
 void
 update_timer(void)
 {
@@ -165,6 +297,15 @@ key_event(void)
      case 'P':
           toggle_pause();
           break;
+    case 'w': 
+    case 'W': 
+          toggle_stats(); 
+          break; 
+    case 'z': 
+    case 'Z': 
+          reset_stats(); 
+          break; 
+
      case '0':
      case '1':
      case '2':
@@ -314,6 +455,7 @@ main(int argc, char **argv)
      }
 
      init();
+     init_stats();
      attron(A_BLINK);
      while (ttyclock.running)
      {
@@ -324,9 +466,12 @@ main(int argc, char **argv)
                continue;
           }
           update_timer();
+          update_stats(); 
           draw_clock();
+          draw_stats(); 
           key_event();
      }
+     save_stats();
 
      endwin();
      printf("Timer stopped.\n");

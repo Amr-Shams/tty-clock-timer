@@ -106,6 +106,21 @@ typedef struct
           char old_datestr[256];
      } date;
 
+
+     struct { 
+     unsigned int total_sessions; 
+     unsigned int current_streak; 
+     unsigned int best_streak; 
+     /* Total time across all sessions */  
+     time_t total_time;  
+     /* Current session time */ 
+     time_t session_time; 
+     /* longest session of all the time */ 
+     time_t best_session; 
+/* Toggle the session */ 
+     bool show_stats; 
+     } stats; 
+
      /* time.h utils */
      struct tm *tm;
      time_t lt;
@@ -117,6 +132,7 @@ typedef struct
      char *meridiem;
      WINDOW *framewin;
      WINDOW *datewin;
+     WINDOW *statswin; 
 
 } ttyclock_t;
 
@@ -133,6 +149,16 @@ void key_event(void);
 void cleanup(void); 
 void clock_rebound(void);
 int format_hours(int);
+void reset_timer(void); 
+
+/* Stats functions */ 
+void init_stats(void);
+void update_stats(void);
+void draw_stats(void);
+void save_stats(void);
+void load_stats(void);
+void toggle_stats(void);
+void reset_stats(void);
 /* Global variable */
 ttyclock_t ttyclock;
 

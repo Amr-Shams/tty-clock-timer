@@ -1,6 +1,5 @@
 
 #include "ttyclock.h"
-time_t pause_time;
 void 
 init_stats(void) { 
   memset(&ttyclock.stats, 0, sizeof(ttyclock.stats)); 
@@ -183,6 +182,7 @@ reset_timer(void)
 void
 toggle_pause(void)
 {
+  static time_t pause_time;
      time_t now = time(NULL);
 
      if (!ttyclock.pause)
